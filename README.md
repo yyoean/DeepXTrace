@@ -57,14 +57,14 @@ def diagnose_deepep_sync_mode(hidden_states: torch.Tensor, topk_idx: torch.Tenso
         # get the diagnose object
         _diagnose = get_diagnose(group = group, enable_async = False)
         # Get the LL dispatch stats tensor.
-        dispatch_wait_recv_cost_per_token_stats = _diagnose.get_stats_ll_stats_tensor()[0]
+        dispatch_wait_recv_cost_stats = _diagnose.get_stats_ll_stats_tensor()[0]
         _buffer.low_latency_dispatch(hidden_states, topk_idx, num_max_dispatch_tokens_per_rank, num_experts,
-                                     dispatch_wait_recv_cost_per_token_stats=dispatch_wait_recv_cost_per_token_stats,
+                                     dispatch_wait_recv_cost_stats=dispatch_wait_recv_cost_stats,
                                      use_fp8=True)
         # Get the LL combine stats tensor.
-        combine_wait_recv_cost_per_token_stats = _diagnose.get_stats_ll_stats_tensor()[1]
+        combine_wait_recv_cost_stats = _diagnose.get_stats_ll_stats_tensor()[1]
         _buffer.low_latency_combine(hidden_states, topk_idx, topk_weights, handle, use_logfmt=use_logfmt,
-                                    combine_wait_recv_cost_per_token_stats=combine_wait_recv_cost_per_token_stats)
+                                    combine_wait_recv_cost_stats=combine_wait_recv_cost_stats)
 
         # Increment step and perform a diagnosis every 100 steps.
         step += 1
@@ -84,12 +84,12 @@ def diagnose_deepep_async_mode(hidden_states: torch.Tensor, topk_idx: torch.Tens
         _diagnose = get_diagnose(group = group, enable_async = True)
 
         # Get the LL dispatch stats tensor.
-        dispatch_wait_recv_cost_per_token_stats = _diagnose.get_stats_ll_stats_tensor()[0]
+        dispatch_wait_recv_cost_stats = _diagnose.get_stats_ll_stats_tensor()[0]
         _buffer.low_latency_dispatch(hidden_states, topk_idx, num_max_dispatch_tokens_per_rank, num_experts,
-                                     dispatch_wait_recv_cost_per_token_stats=dispatch_wait_recv_cost_per_token_stats,
+                                     dispatch_wait_recv_cost_stats=dispatch_wait_recv_cost_stats,
                                      use_fp8=True)
         # Get the LL combine stats tensor.
-        combine_wait_recv_cost_per_token_stats = _diagnose.get_stats_ll_stats_tensor()[1]
+        combine_wait_recv_cost_stats = _diagnose.get_stats_ll_stats_tensor()[1]
         _buffer.low_latency_combine(hidden_states, topk_idx, topk_weights, handle, use_logfmt=use_logfmt,
-                                    combine_wait_recv_cost_per_token_stats=combine_wait_recv_cost_per_token_stats)
+                                    combine_wait_recv_cost_stats=combine_wait_recv_cost_stats)
 ```

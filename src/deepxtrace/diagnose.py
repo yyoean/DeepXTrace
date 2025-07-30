@@ -36,7 +36,7 @@ class Diagnose:
         scale of EP increases, the risk of slowdowns in the Dispatch and Combine communication operators also rises.
     There are many factors, ranging from GPU hardware anomalies and imbalanced MOE computation to issues with communication
         links, all of which make the detection and localization of the DeepEP slow problems extremely challenging.
-    To address this, we have designed a diagnosis module. Each rank collects the average waiting time for receiving each token
+    To address this, we have designed a diagnosis module. Each rank collects the cumulative waiting time for receiving each token
         from other ranks and reports these statistics to rank 0. Based on the mean-normalized characteristics of the resulting
         analysis matrix, rank 0 can effectively detect and precisely localize slow anomalies in distributed communication.
     In addition, the impact of the overhead of this diagnostic module on performance can be ignored.
@@ -46,7 +46,7 @@ class Diagnose:
         - 2. Slowdown caused by the source rank.
         - 3. Slowdown caused by the communication path between specific source and destination ranks.
 
-    Maintains a statistical matrix of average receive wait times: Matrix[src_rank, dst_rank], where each row represents a
+    Maintains a statistical matrix of cumulative receive wait times: Matrix[src_rank, dst_rank], where each row represents a
         source rank and each column represents a destination rank.
 
     Example anomaly localization:
@@ -90,13 +90,13 @@ class Diagnose:
         stop_diagnose: whether to stop diagnose.
         instance_id: diagnose instance id.
         logger: diagnose logger.
-        ll_dispatch_wait_recv_cost_per_token_stats: a average wait time for receiving each token.
+        ll_dispatch_wait_recv_cost_stats: a cumulative wait time for receiving each token.
                                                     shape `[num_ranks, num_ranks]` and be typed as `torch.int64`.
-        ll_combine_wait_recv_cost_per_token_stats: a average wait time for receiving each token.
+        ll_combine_wait_recv_cost_stats: a cumulative wait time for receiving each token.
                                                    shape `[num_ranks, num_ranks]` and be typed as `torch.int64`.
-        normal_dispatch_wait_recv_cost_per_token_stats: a average wait time for receiving each token.
+        normal_dispatch_wait_recv_cost_stats: a cumulative wait time for receiving each token.
                                                         shape `[num_ranks, num_ranks]` and be typed as `torch.int64`.
-        normal_combine_wait_recv_cost_per_token_stats: a average wait time for receiving each token.
+        normal_combine_wait_recv_cost_stats: a cumulative wait time for receiving each token.
                                                        shape `[num_ranks, num_ranks]` and be typed as `torch.int64`.
         gather_tensor: save all ranks diagnose stats to rank0.
         cpu_group: the communication of `gloo` group.
@@ -154,14 +154,14 @@ class Diagnose:
         self.logger = Diagnose._setup_logger_internal(rank=self.rank)
         # TODO: Use pinned memory optimization
         if self.enable_ll_diagnose:
-            self.ll_dispatch_wait_recv_cost_per_token_stats = torch.zeros(
+            self.ll_dispatch_wait_recv_cost_stats = torch.zeros(
                 (self.group_size, ), dtype=torch.int64, device='cuda')
-            self.ll_combine_wait_recv_cost_per_token_stats = torch.zeros(
+            self.ll_combine_wait_recv_cost_stats = torch.zeros(
                 (self.group_size, ), dtype=torch.int64, device='cuda')
         if self.enable_normal_diagnose:
-            self.normal_dispatch_wait_recv_cost_per_token_stats = torch.zeros(
+            self.normal_dispatch_wait_recv_cost_stats = torch.zeros(
                 (self.group_size, ), dtype=torch.int64, device='cuda')
-            self.normal_combine_wait_recv_cost_per_token_stats = torch.zeros(
+            self.normal_combine_wait_recv_cost_stats = torch.zeros(
                 (self.group_size, ), dtype=torch.int64, device='cuda')
         if self.enable_ll_diagnose or self.enable_normal_diagnose:
             if self.rank == 0:
@@ -177,8 +177,8 @@ class Diagnose:
             self.instance_id = uuid.UUID(bytes=ubytes.cpu().numpy().tobytes())
             # Initialize the stats tensor
             stats_list = [
-                self.ll_dispatch_wait_recv_cost_per_token_stats,
-                self.ll_combine_wait_recv_cost_per_token_stats]
+                self.ll_dispatch_wait_recv_cost_stats,
+                self.ll_combine_wait_recv_cost_stats]
             # Using gloo to avoid affecting GPU communication when enable_async
             # mode
             self.cpu_group = dist.new_group(ranks=list(
@@ -192,32 +192,32 @@ class Diagnose:
 
     def get_stats_ll_stats_tensor(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Get the average wait time for receiving each token under low-latency mode for statistical purposes,
+        Get the cumulative wait time for receiving each token under low-latency mode for statistical purposes,
         which is useful for detecting and precisely localizing slow anomalies.
         The shape `[num_ranks, num_ranks]` and be typed as `torch.int64`.
 
         Returns:
-            tuple[0]: ll_dispatch_wait_recv_cost_per_token_stats.
-            tuple[1]: ll_combine_wait_recv_cost_per_token_stats.
+            tuple[0]: ll_dispatch_wait_recv_cost_stats.
+            tuple[1]: ll_combine_wait_recv_cost_stats.
         """
         return (
-            self.ll_dispatch_wait_recv_cost_per_token_stats if self.enable_ll_diagnose else None,
-            self.ll_combine_wait_recv_cost_per_token_stats if self.enable_ll_diagnose else None)
+            self.ll_dispatch_wait_recv_cost_stats if self.enable_ll_diagnose else None,
+            self.ll_combine_wait_recv_cost_stats if self.enable_ll_diagnose else None)
 
     def get_stats_normal_stats_tensor(
             self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Get the average wait time for receiving each token under normal mode for statistical purposes,
+        Get the cumulative wait time for receiving each token under normal mode for statistical purposes,
         which is useful for detecting and precisely localizing slow anomalies.
         The shape `[num_ranks, num_ranks]` and be typed as `torch.int64`.
 
         Returns:
-            tuple[0]: normal_dispatch_wait_recv_cost_per_token_stats.
-            tuple[1]: normal_combine_wait_recv_cost_per_token_stats.
+            tuple[0]: normal_dispatch_wait_recv_cost_stats.
+            tuple[1]: normal_combine_wait_recv_cost_stats.
         """
         return (
-            self.normal_dispatch_wait_recv_cost_per_token_stats if self.enable_normal_diagnose else None,
-            self.normal_combine_wait_recv_cost_per_token_stats if self.enable_normal_diagnose else None)
+            self.normal_dispatch_wait_recv_cost_stats if self.enable_normal_diagnose else None,
+            self.normal_combine_wait_recv_cost_stats if self.enable_normal_diagnose else None)
 
     def get_all_stats_tensor(self):
         """
@@ -332,13 +332,13 @@ class Diagnose:
             try:
                 if self.enable_ll_diagnose:
                     self._gather_diagnose_stats_internal(
-                        [self.ll_dispatch_wait_recv_cost_per_token_stats, self.ll_combine_wait_recv_cost_per_token_stats])
+                        [self.ll_dispatch_wait_recv_cost_stats, self.ll_combine_wait_recv_cost_stats])
 
                 if self.enable_normal_diagnose:
                     self._gather_diagnose_stats_internal(
                         [
-                            self.normal_dispatch_wait_recv_cost_per_token_stats,
-                            self.normal_combine_wait_recv_cost_per_token_stats])
+                            self.normal_dispatch_wait_recv_cost_stats,
+                            self.normal_combine_wait_recv_cost_stats])
             except Exception as e:
                 self.logger.info(
                     f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size} Rank: {self.rank} deepep/dist error: {e}, diagnose thread exit.")
@@ -399,7 +399,7 @@ class Diagnose:
         if not self.enable_ll_diagnose:
             return None
         return self._gather_diagnose_stats_internal(
-            [self.ll_dispatch_wait_recv_cost_per_token_stats, self.ll_combine_wait_recv_cost_per_token_stats])
+            [self.ll_dispatch_wait_recv_cost_stats, self.ll_combine_wait_recv_cost_stats])
 
     def diagnose_normal_sync(self) -> List[Dict[str, Any]]:
         """
@@ -425,8 +425,8 @@ class Diagnose:
             return None
         return self._gather_diagnose_stats_internal(
             [
-                self.normal_dispatch_wait_recv_cost_per_token_stats,
-                self.normal_combine_wait_recv_cost_per_token_stats])
+                self.normal_dispatch_wait_recv_cost_stats,
+                self.normal_combine_wait_recv_cost_stats])
 
     def start_async_diagnose(self):
         """
