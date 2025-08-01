@@ -106,6 +106,10 @@ class Diagnose:
         DEEPEP_DIAGNOSE_INTERVAL: controls the diagnose cycle period in seconds. Default 10.
         DEEPEP_DIAGNOSE_LOG_PATH: set the output file path for diagnose logs. Default ".".
         DEEPEP_DIAGNOSE_LOG_DETAILS: determine output the diagnose details info. Default "0".
+        DEEPEP_DIAGNOSE_THRESHOLD_COL: determine threshold for abnormal columns. Default 3.0.
+        DEEPEP_DIAGNOSE_THRESHOLD_ROW: determine threshold for abnormal rows. Default 3.0.
+        DEEPEP_DIAGNOSE_THRESHOLD_POINT: determine threshold for abnormal individual points. Default 5.0.
+
     """
 
     def __init__(
@@ -139,6 +143,16 @@ class Diagnose:
         self.enable_details = os.getenv(
             "DEEPEP_DIAGNOSE_LOG_DETAILS", "0").lower() not in (
             "0", "false", "off")
+
+        # Determine threshold for abnormal columns
+        self.thres_col = float(os.getenv("DEEPEP_DIAGNOSE_THRESHOLD_COL", 3.0))
+        # Determine threshold for abnormal rows
+        self.thres_row = float(os.getenv("DEEPEP_DIAGNOSE_THRESHOLD_ROW", 3.0))
+        # Determine threshold for abnormal individual points
+        self.thres_point = float(
+            os.getenv(
+                "DEEPEP_DIAGNOSE_THRESHOLD_POINT",
+                5.0))
 
         # Initialize the diagnose
         self.group = group
@@ -367,7 +381,8 @@ class Diagnose:
             else:
                 stats_arr = torch.stack(self.gather_tensor, dim=0).numpy()
             for i, name in enumerate(["Dispatch", "Combine"]):
-                res = Diagnose.diagnose_matrix(stats_arr[:, i, :])
+                res = Diagnose.diagnose_matrix(
+                    stats_arr[:, i, :], thres_col=self.thres_col, thres_row=self.thres_row, thres_point=self.thres_point)
                 results.append(res)
                 self.logger.info(
                     f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size}, diagnose: {res}, {name} Wait Recv Cost Per Token Matrix[src_rank, dst_rank]")
