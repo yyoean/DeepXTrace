@@ -28,7 +28,7 @@ python setup.py bdist_wheel
 
 ```python
 from deep_ep import Buffer
-from deep_trace import diagnose as ds
+from deepxtrace import diagnose as ds
 
 _buffer: Optional[Buffer] = None
 _diagnose: Optional[ds.Diagnose] = None
