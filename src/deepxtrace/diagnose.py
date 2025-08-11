@@ -445,7 +445,8 @@ class Diagnose:
         self._reset_ll_stats()
         return res
 
-    def diagnose_normal_sync(self, diagnose_step: int = 0) -> List[Dict[str, Any]]:
+    def diagnose_normal_sync(
+            self, diagnose_step: int = 0) -> List[Dict[str, Any]]:
         """
         Perform synchronous diagnosis for normal DeepEP mode every `step_round` steps.
 
