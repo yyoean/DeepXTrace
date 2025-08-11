@@ -104,6 +104,7 @@ class Diagnose:
     Environment variables:
         DEEPEP_DIAGNOSE_ENABLE: determine diagnose enable switch from environment variable. Default 1.
         DEEPEP_DIAGNOSE_INTERVAL: controls the diagnose cycle period in seconds. Default 10.
+        DEEPEP_DIAGNOSE_SYNC_STEP: controls the diagnose step counter. Default: 580.
         DEEPEP_DIAGNOSE_LOG_PATH: set the output file path for diagnose logs. Default ".".
         DEEPEP_DIAGNOSE_LOG_DETAILS: determine output the diagnose details info. Default "0".
         DEEPEP_DIAGNOSE_THRESHOLD_COL: determine threshold for abnormal columns. Default 3.0.
@@ -163,6 +164,8 @@ class Diagnose:
         self.enable_async = enable_async
         # Controls the diagnose cycle period in seconds. Default: 10
         self.interval = int(os.getenv("DEEPEP_DIAGNOSE_INTERVAL", interval))
+        # Controls the diagnose step counter. Default: 100
+        self.sync_step = np.uint64(os.getenv("DEEPEP_DIAGNOSE_SYNC_STEP", 580))
         self.stop_diagnose = threading.Event()
 
         self.logger = Diagnose._setup_logger_internal(rank=self.rank)
@@ -172,11 +175,13 @@ class Diagnose:
                 (self.group_size, ), dtype=torch.int64, device='cuda')
             self.ll_combine_wait_recv_cost_stats = torch.zeros(
                 (self.group_size, ), dtype=torch.int64, device='cuda')
+            self.sync_ll_step_counter = np.uint64(0)
         if self.enable_normal_diagnose:
             self.normal_dispatch_wait_recv_cost_stats = torch.zeros(
                 (self.group_size, ), dtype=torch.int64, device='cuda')
             self.normal_combine_wait_recv_cost_stats = torch.zeros(
                 (self.group_size, ), dtype=torch.int64, device='cuda')
+            self.sync_normal_step_counter = np.uint64(0)
         if self.enable_ll_diagnose or self.enable_normal_diagnose:
             if self.rank == 0:
                 ubytes = torch.tensor(
@@ -340,6 +345,16 @@ class Diagnose:
             'abnormal_points': abnormal_points
         }
 
+    def _reset_ll_stats(self):
+        # Make LL dispatch/combine stats tensor zero
+        self.ll_dispatch_wait_recv_cost_stats.zero_()
+        self.ll_combine_wait_recv_cost_stats.zero_()
+
+    def _reset_normal_stats(self):
+        # Make normal dispatch/combine stats tensor zero
+        self.normal_dispatch_wait_recv_cost_stats.zero_()
+        self.normal_combine_wait_recv_cost_stats.zero_()
+
     def _diagnose_internal(self):
         while not self.stop_diagnose.is_set():
             time.sleep(self.interval)
@@ -347,12 +362,16 @@ class Diagnose:
                 if self.enable_ll_diagnose:
                     self._gather_diagnose_stats_internal(
                         [self.ll_dispatch_wait_recv_cost_stats, self.ll_combine_wait_recv_cost_stats])
+                    # Make LL dispatch/combine stats tensor zero
+                    self._reset_ll_stats()
 
                 if self.enable_normal_diagnose:
                     self._gather_diagnose_stats_internal(
                         [
                             self.normal_dispatch_wait_recv_cost_stats,
                             self.normal_combine_wait_recv_cost_stats])
+                    # Make normal dispatch/combine stats tensor zero
+                    self._reset_normal_stats()
             except Exception as e:
                 self.logger.info(
                     f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size} Rank: {self.rank} deepep/dist error: {e}, diagnose thread exit.")
@@ -392,9 +411,9 @@ class Diagnose:
                             f"[{' '.join(f'{val:8d}' for val in row)}]")
         return results
 
-    def diagnose_ll_sync(self) -> List[Dict[str, Any]]:
+    def diagnose_ll_sync(self, diagnose_step: int = 0) -> List[Dict[str, Any]]:
         """
-        Perform synchronous diagnosis for low latency (LL) DeepEP mode.
+        Perform synchronous diagnosis for low latency (LL) DeepEP mode every `step_round` steps.
 
         This method runs synchronously and returns diagnosis results for
         both dispatch and combine phases.
@@ -413,12 +432,22 @@ class Diagnose:
         assert self.enable_async is False, "diagnose_ll_sync() can only be called when 'self.enable_async' is False."
         if not self.enable_ll_diagnose:
             return None
-        return self._gather_diagnose_stats_internal(
+
+        # The value priority set by diagnose_step is higher than self.sync_step
+        step_round = diagnose_step if diagnose_step != 0 else self.sync_step
+        self.sync_ll_step_counter += 1
+        if self.sync_ll_step_counter % step_round != 0:
+            return None
+        res = self._gather_diagnose_stats_internal(
             [self.ll_dispatch_wait_recv_cost_stats, self.ll_combine_wait_recv_cost_stats])
 
-    def diagnose_normal_sync(self) -> List[Dict[str, Any]]:
+        # Make LL dispatch/combine stats tensor zero
+        self._reset_ll_stats()
+        return res
+
+    def diagnose_normal_sync(self, diagnose_step: int = 0) -> List[Dict[str, Any]]:
         """
-        Perform synchronous diagnosis for normal DeepEP mode.
+        Perform synchronous diagnosis for normal DeepEP mode every `step_round` steps.
 
         This method runs synchronously and returns diagnosis results for
         both dispatch and combine phases.
@@ -435,13 +464,23 @@ class Diagnose:
                                   abnormal columns, rows, and points.
         """
         assert self.enable_async is False, "diagnose_normal_sync() can only be called when 'self.enable_async' is False."
-
         if not self.enable_normal_diagnose:
             return None
-        return self._gather_diagnose_stats_internal(
+
+        # The value priority set by diagnose_step is higher than self.sync_step
+        step_round = diagnose_step if diagnose_step != 0 else self.sync_step
+        self.sync_normal_step_counter += 1
+        if self.sync_normal_step_counter % step_round != 0:
+            return None
+
+        res = self._gather_diagnose_stats_internal(
             [
                 self.normal_dispatch_wait_recv_cost_stats,
                 self.normal_combine_wait_recv_cost_stats])
+
+        # Make normal dispatch/combine stats tensor zero
+        self._reset_normal_stats()
+        return res
 
     def start_async_diagnose(self):
         """

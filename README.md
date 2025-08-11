@@ -53,7 +53,7 @@ def get_diagnose(group: dist.ProcessGroup, enable_async: bool) -> ds.Diagnose:
 
 # An example of synchronous diagnostic mode.
 def diagnose_deepep_sync_mode(hidden_states: torch.Tensor, topk_idx: torch.Tensor, num_max_dispatch_tokens_per_rank: int, num_experts: int, group: dist.ProcessGroup):
-        global _diagnose,step
+        global _diagnose
         # get the diagnose object
         _diagnose = get_diagnose(group = group, enable_async = False)
         # Get the LL dispatch stats tensor.
@@ -66,14 +66,12 @@ def diagnose_deepep_sync_mode(hidden_states: torch.Tensor, topk_idx: torch.Tenso
         _buffer.low_latency_combine(hidden_states, topk_idx, topk_weights, handle, use_logfmt=use_logfmt,
                                     combine_wait_recv_cost_stats=combine_wait_recv_cost_stats)
 
-        # Increment step and perform a diagnosis every 100 steps.
-        step += 1
-        if step % 100 == 0:
-            # Perform synchronous diagnosis for low latency (LL) DeepEP mode.
-            # Note: diagnosis results will be gathered to rank0.
-            diagnose_res = _diagnose.diagnose_ll_sync()
-            if rank == 0:
-                print(diagnose_res)
+        # Perform synchronous diagnosis for low latency (LL) DeepEP mode.
+        # Set to perform a diagnosis every 100 steps.
+        diagnose_res = _diagnose.diagnose_ll_sync(diagnose_step = 100)
+        # Note: diagnosis results will be gathered to rank0.
+        if rank == 0:
+            print(diagnose_res)
 
 # An example of asynchronous diagnostic mode.
 def diagnose_deepep_async_mode(hidden_states: torch.Tensor, topk_idx: torch.Tensor, num_max_dispatch_tokens_per_rank: int, num_experts: int, group: dist.ProcessGroup):
