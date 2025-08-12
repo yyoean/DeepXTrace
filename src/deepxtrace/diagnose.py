@@ -26,7 +26,6 @@ import logging
 import torch.distributed as dist
 import numpy as np
 from typing import Optional, Tuple, List, Dict, Any
-from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 
 
@@ -280,7 +279,9 @@ class Diagnose:
             interval=interval,
             backupCount=backupCount,
             encoding='utf-8')
-        formatter = logging.Formatter('%(message)s')
+        formatter = logging.Formatter(
+            '[%(asctime)s.%(msecs)03d] %(message)s',
+            datefmt='%Y-%m-%dT%H:%M:%S')
         handler.setFormatter(formatter)
         if not logger.hasHandlers():
             logger.addHandler(handler)
@@ -374,7 +375,7 @@ class Diagnose:
                     self._reset_normal_stats()
             except Exception as e:
                 self.logger.info(
-                    f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size} Rank: {self.rank} deepep/dist error: {e}, diagnose thread exit.")
+                    f"[Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size} Rank: {self.rank} deepep/dist error: {e}, diagnose thread exit.")
                 logging.shutdown()
                 break
 
@@ -404,11 +405,11 @@ class Diagnose:
                     stats_arr[:, i, :], thres_col=self.thres_col, thres_row=self.thres_row, thres_point=self.thres_point)
                 results.append(res)
                 self.logger.info(
-                    f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size}, diagnose: {res}, {name} Wait Recv Cost Per Token Matrix[src_rank, dst_rank]")
+                    f"[Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size}, diagnose: {res}, {name} Wait Recv Cost Per Token Matrix[src_rank, dst_rank]")
                 if self.enable_details:
-                    for row in stats_arr[:, i, :]:
+                    for idx, row in enumerate(stats_arr[:, i, :]):
                         self.logger.info(
-                            f"[{' '.join(f'{val:8d}' for val in row)}]")
+                            f"rank={idx} [{' '.join(f'{val:8d}' for val in row)}]")
         return results
 
     def diagnose_ll_sync(self, diagnose_step: int = 0) -> List[Dict[str, Any]]:
