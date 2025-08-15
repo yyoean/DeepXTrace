@@ -189,7 +189,7 @@ class Diagnose:
                     dtype=torch.uint8,
                     device='cuda')
             else:
-                ubytes = torch.empty(16, dtype=torch.uint8)
+                ubytes = torch.empty(16, dtype=torch.uint8, device='cuda')
             # Initialize the instance id
             dist.broadcast(ubytes, src=0, group=group)
             self.instance_id = uuid.UUID(bytes=ubytes.cpu().numpy().tobytes())
