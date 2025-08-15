@@ -394,7 +394,8 @@ class Diagnose:
             group=group,
             dst=0)
         results: List[Dict[str, Any]] = []
-        if self.rank == 0:
+        # The numpy is not permitted when stream is capturing
+        if self.rank == 0 and (not torch.cuda.is_current_stream_capturing()):
             if self.gather_tensor[0].is_cuda:
                 stats_arr = torch.stack(
                     [it.cpu() for it in self.gather_tensor], dim=0).numpy()
