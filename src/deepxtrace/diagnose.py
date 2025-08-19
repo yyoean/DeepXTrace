@@ -267,6 +267,9 @@ class Diagnose:
             rank=None):
         logger = logging.getLogger(
             f'diagnose_logger{"" if rank is None else f"_rank{rank}"}')
+        # stops searching up the hierarchy whenever a logger with the
+        # ‘propagate’ attribute set to false is found.
+        logger.propagate = False
         logger.setLevel(logging.INFO)
         log_name = f"{log_prefix}{'' if rank is None else f'_rank{rank}'}.log"
         # Set the output file path for diagnose logs. Default ".".
@@ -285,7 +288,6 @@ class Diagnose:
         handler.setFormatter(formatter)
         if not logger.hasHandlers():
             logger.addHandler(handler)
-        logger.propagate = False
         return logger
 
     @staticmethod
