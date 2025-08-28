@@ -383,6 +383,9 @@ class Diagnose:
 
     def _gather_diagnose_stats_internal(
             self, stats_list) -> List[Dict[str, Any]]:
+        results: List[Dict[str, Any]] = []
+        if torch.cuda.is_current_stream_capturing():
+            return results
         if not self.enable_async:
             group = self.group
             stats_tensor = torch.stack(stats_list, dim=0)   # (N, num_ranks)
@@ -395,7 +398,6 @@ class Diagnose:
             gather_list=self.gather_tensor,
             group=group,
             dst=0)
-        results: List[Dict[str, Any]] = []
         # The numpy is not permitted when stream is capturing
         if self.rank == 0 and (not torch.cuda.is_current_stream_capturing()):
             if self.gather_tensor[0].is_cuda:
