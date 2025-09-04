@@ -307,22 +307,28 @@ class Diagnose:
 
         Returns:
             dict: {
-                'abnormal_cols': List[int],  # abnormal column indices
-                'abnormal_rows': List[int],  # abnormal row indices
-                'abnormal_points': List[Tuple[int, int, float, float]]  # (row, col, value, normalized_value)
+                'abnormal_cols': List[Tuple[int, float, float]],  # abnormal column indices, (col_index, mean_value, normalized_value)
+                'abnormal_rows': List[Tuple[int, float, float]],  # abnormal row indices, (rol_index, mean_value, normalized_value)
+                'abnormal_points': List[Tuple[int, int, float, float]]  # abnormal points, (row, col, value, normalized_value)
             }
         """
         # 1. Check for abnormal columns
         col_means = mat.mean(axis=0)
         # z_col = (col_means - col_means.mean()) / (col_means.std() + 1e-8)
         z_col = col_means / (col_means.mean() + 1e-8)
-        abnormal_cols = np.where(z_col > thres_col)[0].tolist()
+        abnormal_cols = [
+            (j, col_means[j], z_col[j])
+            for j in np.where(z_col > thres_col)[0]
+        ]
 
         # 2. Check for abnormal rows
         row_means = mat.mean(axis=1)
         # z_row = (row_means - row_means.mean()) / (row_means.std() + 1e-8)
         z_row = row_means / (row_means.mean() + 1e-8)
-        abnormal_rows = np.where(z_row > thres_row)[0].tolist()
+        abnormal_rows = [
+            (i, row_means[i], z_row[i])
+            for i in np.where(z_row > thres_row)[0]
+        ]
 
         # 3. Check for abnormal single points
         # z_all = (mat - mat.mean()) / (mat.std() + 1e-8)
@@ -337,9 +343,11 @@ class Diagnose:
         # Optionally remove points that are in already detected abnormal rows
         # or columns
         if suppress_points_in_strong_rowscols:
+            strong_rows = [row[0] for row in abnormal_rows]
+            strong_cols = [col[0] for col in abnormal_cols]
             abnormal_points = [
                 (i, j, v, z) for (i, j, v, z) in abnormal_points
-                if i not in abnormal_rows and j not in abnormal_cols
+                if i not in strong_rows and j not in strong_cols
             ]
         # 4. Return for automatic processing
         return {
