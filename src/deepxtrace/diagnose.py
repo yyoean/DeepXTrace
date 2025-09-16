@@ -313,9 +313,9 @@ class Diagnose:
 
         Returns:
             dict: {
-                'abnormal_cols': List[Tuple[int, float, float]],  # abnormal column indices, (col_index, mean_value, normalized_value)
-                'abnormal_rows': List[Tuple[int, float, float]],  # abnormal row indices, (rol_index, mean_value, normalized_value)
-                'abnormal_points': List[Tuple[int, int, float, float]]  # abnormal points, (row, col, value, normalized_value)
+                "abnormal_cols": List[List[int, float, float]],  # abnormal column indices, [col_index, mean_value, normalized_value]
+                "abnormal_rows": List[List[int, float, float]],  # abnormal row indices, [rol_index, mean_value, normalized_value]
+                "abnormal_points": List[List[int, int, float, float]]  # abnormal points, [row, col, value, normalized_value]
             }
         """
         # 1. Check for abnormal columns
@@ -323,7 +323,7 @@ class Diagnose:
         # z_col = (col_means - col_means.mean()) / (col_means.std() + 1e-8)
         z_col = col_means / (col_means.mean() + 1e-8)
         abnormal_cols = [
-            (j, col_means[j], z_col[j])
+            [j, col_means[j], z_col[j]]
             for j in np.where(z_col > thres_col)[0]
         ]
 
@@ -332,7 +332,7 @@ class Diagnose:
         # z_row = (row_means - row_means.mean()) / (row_means.std() + 1e-8)
         z_row = row_means / (row_means.mean() + 1e-8)
         abnormal_rows = [
-            (i, row_means[i], z_row[i])
+            [i, row_means[i], z_row[i]]
             for i in np.where(z_row > thres_row)[0]
         ]
 
@@ -341,7 +341,7 @@ class Diagnose:
         z_all = mat / (mat.mean() + 1e-8)
         # Get all positions with z-score > threshold
         abnormal_points = [
-            (i, j, mat[i, j], z_all[i, j])
+            [i, j, mat[i, j], z_all[i, j]]
             for i in range(mat.shape[0])
             for j in range(mat.shape[1])
             if z_all[i, j] > thres_point
@@ -352,14 +352,14 @@ class Diagnose:
             strong_rows = [row[0] for row in abnormal_rows]
             strong_cols = [col[0] for col in abnormal_cols]
             abnormal_points = [
-                (i, j, v, z) for (i, j, v, z) in abnormal_points
+                [i, j, v, z] for [i, j, v, z] in abnormal_points
                 if i not in strong_rows and j not in strong_cols
             ]
         # 4. Return for automatic processing
         return {
-            'abnormal_cols': abnormal_cols,
-            'abnormal_rows': abnormal_rows,
-            'abnormal_points': abnormal_points
+            "abnormal_cols": abnormal_cols,
+            "abnormal_rows": abnormal_rows,
+            "abnormal_points": abnormal_points
         }
 
     def _reset_ll_stats(self):

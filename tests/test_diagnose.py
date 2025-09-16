@@ -74,17 +74,17 @@ class TestDiagnose(unittest.TestCase):
         self.assertEqual(
             res, {
                 'abnormal_cols': [], 'abnormal_rows': [
-                    (3, 14833975.5, 7.997677898368585)], 'abnormal_points': []})
+                    [3, 14833975.5, 7.997677898368585]], 'abnormal_points': []})
 
     def test_diagnose_col(self):
         res = ds.Diagnose.diagnose_matrix(self.abnormal_col)
         self.assertEqual(res,
-                         {'abnormal_cols': [(2,
+                         {'abnormal_cols': [[2,
                                              17298710.125,
-                                             3.9984464415004988),
-                                            (4,
+                                             3.9984464415004988],
+                                            [4,
                                              17307027.75,
-                                             4.000368988201534)],
+                                             4.000368988201534]],
                              'abnormal_rows': [],
                              'abnormal_points': []})
 
@@ -94,15 +94,15 @@ class TestDiagnose(unittest.TestCase):
         self.assertEqual(
             res, {
                 'abnormal_cols': [
-                    (2, 17298710.125, 2.946167089439367), (4, 17307027.75, 2.9475836755813525)], 'abnormal_rows': [
-                    (6, 17306350.5, 2.9474683322033255)], 'abnormal_points': []})
+                    [2, 17298710.125, 2.946167089439367], [4, 17307027.75, 2.9475836755813525]], 'abnormal_rows': [
+                    [6, 17306350.5, 2.9474683322033255]], 'abnormal_points': []})
 
     def test_diagnose_point(self):
         res = ds.Diagnose.diagnose_matrix(self.abnormal_point)
         self.assertEqual(
             res, {
                 'abnormal_cols': [], 'abnormal_rows': [], 'abnormal_points': [
-                    (3, 4, 125, 7.279344854723584)]})
+                    [3, 4, 125, 7.279344854723584]]})
 
 
 if __name__ == '__main__':
