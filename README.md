@@ -11,6 +11,16 @@ DeepXTrace supports diagnosis of various slowdown scenarios, including:
 
 ![slow](figures/slow.png)
 
+DeepXTrace automatically collects communication diagnostic metrics for Dispatch/Combine operators across all ranks, while constructing an `N×N` latency matrix `M` on `Rank 0` based on aggregated metrics (where `Mij` represents the delay of `rank_i` waiting for `rank_j`). In the `EP16` scenario, the matrix is categorized by latency magnitude through color gradients, visually revealing a positive correlation between latency data and communication topology, with red > yellow > green indicating increasing latency levels.
+
+The following figure shows the latency matrix for the Dispatch operator's token reception delays across ranks. The relatively high values in the column for `Rank 4` indicate a computational delay issue in `Rank 4`.
+
+![dispatch](figures/dispatch.png)
+
+The following figure shows the latency matrix for the Combine operator's token reception delays across ranks. No anomalous columns, rows, or points are observed, indicating that the Combine communication operator did not exhibit anomalies during this diagnostic cycle.
+
+![combine](figures/combine.png)
+
 ##  DeepEP-Metrics-Probe
 
 A low-overhead module for measuring critical diagnostic indicators during DeepEP communication. See also: [DeepEP Diagnose PR](https://github.com/deepseek-ai/DeepEP/pull/311).
@@ -25,6 +35,8 @@ python setup.py bdist_wheel
 ```
 
 ### Example use in DeepEP Low-Latency (LL) mode
+
+DeepXTrace implements two diagnostic modes: synchronous for maximum accuracy and asynchronous for higher performance, as illustrated in the sample code below.
 
 ```python
 from deep_ep import Buffer
