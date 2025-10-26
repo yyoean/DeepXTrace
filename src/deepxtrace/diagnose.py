@@ -21,6 +21,7 @@ import threading
 import time
 import uuid
 import os
+import sched
 import torch
 # better to add following code after import torch
 try:
@@ -109,6 +110,7 @@ class Diagnose:
     Environment variables:
         DEEPEP_DIAGNOSE_ENABLE: determine diagnose enable switch from environment variable. Default 1.
         DEEPEP_DIAGNOSE_INTERVAL: controls the diagnose cycle period in seconds. Default 10.
+        DEEPEP_DIAGNOSE_WARMING_TIME: controls the diagnose start warming up time. Default same as 'DEEPEP_DIAGNOSE_INTERVAL'.
         DEEPEP_DIAGNOSE_SYNC_STEP: controls the diagnose step counter. Default: 580.
         DEEPEP_DIAGNOSE_LOG_PATH: set the output file path for diagnose logs. Default ".".
         DEEPEP_DIAGNOSE_LOG_DETAILS: determine output the diagnose details info. Default "0".
@@ -169,6 +171,11 @@ class Diagnose:
         self.enable_async = enable_async
         # Controls the diagnose cycle period in seconds. Default: 10
         self.interval = int(os.getenv("DEEPEP_DIAGNOSE_INTERVAL", interval))
+        # Controls the diagnose warming up time. Default: same as interval
+        self.warm_time = int(
+            os.getenv(
+                "DEEPEP_DIAGNOSE_WARMING_TIME",
+                self.interval))
         # Controls the diagnose step counter. Default: 100
         self.sync_step = np.uint64(os.getenv("DEEPEP_DIAGNOSE_SYNC_STEP", 580))
         self.stop_diagnose = threading.Event()
@@ -373,27 +380,35 @@ class Diagnose:
         self.normal_combine_wait_recv_cost_stats.zero_()
 
     def _diagnose_internal(self):
-        while not self.stop_diagnose.is_set():
-            time.sleep(self.interval)
+        scheduler = sched.scheduler(time.time, time.sleep)
+
+        def run_diagnose():
             try:
                 if self.enable_ll_diagnose:
                     self._gather_diagnose_stats_internal(
-                        [self.ll_dispatch_wait_recv_cost_stats, self.ll_combine_wait_recv_cost_stats])
-                    # Make LL dispatch/combine stats tensor zero
+                        [self.ll_dispatch_wait_recv_cost_stats,
+                         self.ll_combine_wait_recv_cost_stats])
                     self._reset_ll_stats()
 
                 if self.enable_normal_diagnose:
                     self._gather_diagnose_stats_internal(
-                        [
-                            self.normal_dispatch_wait_recv_cost_stats,
-                            self.normal_combine_wait_recv_cost_stats])
-                    # Make normal dispatch/combine stats tensor zero
+                        [self.normal_dispatch_wait_recv_cost_stats,
+                         self.normal_combine_wait_recv_cost_stats])
                     self._reset_normal_stats()
+
             except Exception as e:
                 self.logger.info(
-                    f"[Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size} Rank: {self.rank} deepep/dist error: {e}, diagnose thread exit.")
+                    f"[Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size} Rank: {self.rank} dist error: {e}, diagnose thread exit.")
                 logging.shutdown()
-                break
+                return
+
+            if not self.stop_diagnose.is_set():
+                scheduler.enter(self.interval, 0, run_diagnose)
+
+        # Wait for the main program to warm up, such as inference engine JIT or
+        # graph pattern compilation time.
+        scheduler.enter(self.warm_time, 0, run_diagnose)
+        scheduler.run()
 
     def _gather_diagnose_stats_internal(
             self, stats_list) -> List[Dict[str, Any]]:
