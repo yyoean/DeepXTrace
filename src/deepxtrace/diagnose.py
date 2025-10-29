@@ -327,7 +327,7 @@ class Diagnose:
                 "abnormal_points": List[List[int, int, float, float]]  # abnormal points, [row, col, value, normalized_value]
             }
         """
-        if (excluing_zeros == 0): 
+        if excluing_zeros == 0:
             # 1. Check for abnormal columns (including zeros)
             col_means = mat.mean(axis=0)
             # z_col = (col_means - col_means.mean()) / (col_means.std() + 1e-8)
