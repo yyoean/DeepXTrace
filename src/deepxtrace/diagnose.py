@@ -117,7 +117,7 @@ class Diagnose:
         DEEPEP_DIAGNOSE_THRESHOLD_COL: determine threshold for abnormal columns. Default 3.0.
         DEEPEP_DIAGNOSE_THRESHOLD_ROW: determine threshold for abnormal rows. Default 3.0.
         DEEPEP_DIAGNOSE_THRESHOLD_POINT: determine threshold for abnormal individual points. Default 5.0.
-        DEEPEP_DIAGNOSE_EXCLUDING_ZEROS: controls whether excluding zeors in diagnose_matrix. Default 0.
+        DEEPEP_DIAGNOSE_EXCLUDING_ZEROS: controls whether excluding zeros in diagnose_matrix. Default 0.
 
     """
 
