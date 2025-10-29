@@ -162,7 +162,7 @@ class Diagnose:
             os.getenv(
                 "DEEPEP_DIAGNOSE_THRESHOLD_POINT",
                 5.0))
-        self.excluing_zeros = int(os.getenv("DEEPEP_DIAGNOSE_EXCLUDING_ZEROS", 0))
+        self.excluding_zeros = int(os.getenv("DEEPEP_DIAGNOSE_EXCLUDING_ZEROS", 0))
 
         # Initialize the diagnose
         self.group = group
