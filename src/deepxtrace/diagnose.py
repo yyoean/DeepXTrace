@@ -162,7 +162,8 @@ class Diagnose:
             os.getenv(
                 "DEEPEP_DIAGNOSE_THRESHOLD_POINT",
                 5.0))
-        self.excluding_zeros = int(os.getenv("DEEPEP_DIAGNOSE_EXCLUDING_ZEROS", 0))
+        self.excluding_zeros = int(
+            os.getenv("DEEPEP_DIAGNOSE_EXCLUDING_ZEROS", 0))
 
         # Initialize the diagnose
         self.group = group
@@ -336,7 +337,7 @@ class Diagnose:
                 [j, col_means[j], z_col[j]]
                 for j in np.where(z_col > thres_col)[0]
             ]
-            
+
             # 2. Check for abnormal rows (including zeros)
             row_means = mat.mean(axis=1)
             # z_row = (row_means - row_means.mean()) / (row_means.std() + 1e-8)
@@ -345,7 +346,7 @@ class Diagnose:
                 [i, row_means[i], z_row[i]]
                 for i in np.where(z_row > thres_row)[0]
             ]
-            
+
             # 3. Check for abnormal single points (including zeros)
             # z_all = (mat - mat.mean()) / (mat.std() + 1e-8)
             z_all = mat / (mat.mean() + 1e-8)
@@ -356,70 +357,88 @@ class Diagnose:
                 for j in range(mat.shape[1])
                 if z_all[i, j] > thres_point
             ]
-            # Optionally remove points that are in already detected abnormal rows or columns
+            # Optionally remove points that are in already detected abnormal
+            # rows or columns
             if suppress_points_in_strong_rowscols:
                 strong_rows = [row[0] for row in abnormal_rows]
                 strong_cols = [col[0] for col in abnormal_cols]
                 abnormal_points = [
                     [i, j, v, z] for [i, j, v, z] in abnormal_points
                     if i not in strong_rows and j not in strong_cols
-                ]            
-        else:    
+                ]
+        else:
             # 1. Check for abnormal columns (excluding zeros in columns)
             col_means = np.array([
-                mat[:, j][mat[:, j] != 0].mean()  # Calculate mean of non-zero values in column
-                if np.any(mat[:, j] != 0)         # If column contains non-zero values
-                else 0                            # Else set to 0 (avoid empty column errors)
+                # Calculate mean of non-zero values in column
+                mat[:, j][mat[:, j] != 0].mean()
+                # If column contains non-zero values
+                if np.any(mat[:, j] != 0)
+                # Else set to 0 (avoid empty column errors)
+                else 0
                 for j in range(mat.shape[1])
             ])
             # Calculate normalized values (exclude all-zero columns)
-            valid_cols = np.where(col_means != 0)[0]  # Indices of columns with non-zero mean
-            z_col = np.zeros_like(col_means)          # Initialize all-zero array
+            # Indices of columns with non-zero mean
+            valid_cols = np.where(col_means != 0)[0]
+            # Initialize all-zero array
+            z_col = np.zeros_like(col_means)
             if len(valid_cols) > 0:
-                z_col[valid_cols] = col_means[valid_cols] / (col_means[valid_cols].mean() + 1e-8)
+                z_col[valid_cols] = col_means[valid_cols] / \
+                    (col_means[valid_cols].mean() + 1e-8)
             # Detect abnormal columns (only non-zero columns)
             abnormal_cols = [
                 [j, col_means[j], z_col[j]]
                 for j in valid_cols
                 if z_col[j] > thres_col
             ]
-        
+
             # 2. Check for abnormal rows (excluding zeros in rows)
             row_means = np.array([
-                mat[i, :][mat[i, :] != 0].mean()  # Calculate mean of non-zero values in row
-                if np.any(mat[i, :] != 0)         # If row contains non-zero values
-                else 0                            # Else set to 0 (avoid empty row errors)
+                # Calculate mean of non-zero values in row
+                mat[i, :][mat[i, :] != 0].mean()
+                # If row contains non-zero values
+                if np.any(mat[i, :] != 0)
+                # Else set to 0 (avoid empty row errors)
+                else 0
                 for i in range(mat.shape[0])
             ])
             # Calculate normalized values (exclude all-zero rows)
-            valid_rows = np.where(row_means != 0)[0]  # Indices of rows with non-zero mean
-            z_row = np.zeros_like(row_means)          # Initialize all-zero array
+            # Indices of rows with non-zero mean
+            valid_rows = np.where(row_means != 0)[0]
+            # Initialize all-zero array
+            z_row = np.zeros_like(row_means)
             if len(valid_rows) > 0:
-                z_row[valid_rows] = row_means[valid_rows] / (row_means[valid_rows].mean() + 1e-8)
+                z_row[valid_rows] = row_means[valid_rows] / \
+                    (row_means[valid_rows].mean() + 1e-8)
             # Detect abnormal rows (only non-zero rows)
             abnormal_rows = [
                 [i, row_means[i], z_row[i]]
                 for i in valid_rows
                 if z_row[i] > thres_row
-            ]     
-                
+            ]
+
             # 3. Check for abnormal single points (excluding zeros)
             mask = mat != 0  # Create mask for non-zero values
-            z_all = np.zeros_like(mat, dtype=float)  # Initialize all-zero array
+            # Initialize all-zero array
+            z_all = np.zeros_like(mat, dtype=float)
             if np.any(mask):  # If non-zero values exist
                 # Calculate mean of non-zero values (global)
                 nonzero_mean = mat[mask].mean()
-                z_all[mask] = mat[mask] / (nonzero_mean + 1e-8)  # Normalize only non-zero values
+                # Normalize only non-zero values
+                z_all[mask] = mat[mask] / (nonzero_mean + 1e-8)
             # Detect abnormal points (non-zero values with z-score > threshold)
             abnormal_points = [
                 [i, j, mat[i, j], z_all[i, j]]
                 for i in range(mat.shape[0])
                 for j in range(mat.shape[1])
-                if mask[i, j] and z_all[i, j] > thres_point  # Ensure non-zero and abnormal
+                # Ensure non-zero and abnormal
+                if mask[i, j] and z_all[i, j] > thres_point
             ]
-            # Optionally remove points in already detected abnormal rows/columns
+            # Optionally remove points in already detected abnormal
+            # rows/columns
             if suppress_points_in_strong_rowscols:
-                strong_rows = {row[0] for row in abnormal_rows}  # Use set for faster lookup
+                # Use set for faster lookup
+                strong_rows = {row[0] for row in abnormal_rows}
                 strong_cols = {col[0] for col in abnormal_cols}
                 abnormal_points = [
                     [i, j, v, z] for [i, j, v, z] in abnormal_points
@@ -462,7 +481,10 @@ class Diagnose:
 
             except Exception as e:
                 self.logger.info(
-                    f"[Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size} Rank: {self.rank} dist error: {e}, diagnose thread exit.")
+                    f"[Diagnose] InstanceID: {
+                        self.instance_id} EPSize: {
+                        self.group_size} Rank: {
+                        self.rank} dist error: {e}, diagnose thread exit.")
                 logging.shutdown()
                 return
 
@@ -499,11 +521,18 @@ class Diagnose:
             else:
                 stats_arr = torch.stack(self.gather_tensor, dim=0).numpy()
             for i, name in enumerate(["Dispatch", "Combine"]):
-                res = Diagnose.diagnose_matrix(
-                    stats_arr[:, i, :], thres_col=self.thres_col, thres_row=self.thres_row, thres_point=self.thres_point, excluing_zeros=self.excluing_zeros)
+                res = Diagnose.diagnose_matrix(stats_arr[:,
+                                                         i,
+                                                         :],
+                                               thres_col=self.thres_col,
+                                               thres_row=self.thres_row,
+                                               thres_point=self.thres_point,
+                                               excluing_zeros=self.excluing_zeros)
                 results.append(res)
                 self.logger.info(
-                    f"[Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size}, diagnose: {res}, {name} Wait Recv Cost Per Token Matrix[src_rank, dst_rank]")
+                    f"[Diagnose] InstanceID: {
+                        self.instance_id} EPSize: {
+                        self.group_size}, diagnose: {res}, {name} Wait Recv Cost Per Token Matrix[src_rank, dst_rank]")
                 if self.enable_details:
                     for idx, row in enumerate(stats_arr[:, i, :]):
                         self.logger.info(
