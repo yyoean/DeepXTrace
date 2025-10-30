@@ -506,9 +506,7 @@ class Diagnose:
                     stats_arr[:, i, :], thres_col=self.thres_col, thres_row=self.thres_row, thres_point=self.thres_point)
                 results.append(res)
                 self.logger.info(
-                    f"[Diagnose] InstanceID: {
-                        self.instance_id} EPSize: {
-                        self.group_size}, diagnose: {res}, {name} Wait Recv Cost Per Token Matrix[src_rank, dst_rank]")
+                    f"[Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size}, diagnose: {res}, {name} Wait Recv Cost Per Token Matrix[src_rank, dst_rank]")
                 if self.enable_details:
                     for idx, row in enumerate(stats_arr[:, i, :]):
                         self.logger.info(
