@@ -368,15 +368,7 @@ class Diagnose:
                 ]
         else:
             # 1. Check for abnormal columns (excluding zeros in columns)
-            col_means = np.array([
-                # Calculate mean of non-zero values in column
-                mat[:, j][mat[:, j] != 0].mean()
-                # If column contains non-zero values
-                if np.any(mat[:, j] != 0)
-                # Else set to 0 (avoid empty column errors)
-                else 0
-                for j in range(mat.shape[1])
-            ])
+            col_means = np.ma.masked_equal(mat, 0).mean(axis=0).filled(0)
             # Calculate normalized values (exclude all-zero columns)
             # Indices of columns with non-zero mean
             valid_cols = np.where(col_means != 0)[0]
@@ -393,15 +385,7 @@ class Diagnose:
             ]
 
             # 2. Check for abnormal rows (excluding zeros in rows)
-            row_means = np.array([
-                # Calculate mean of non-zero values in row
-                mat[i, :][mat[i, :] != 0].mean()
-                # If row contains non-zero values
-                if np.any(mat[i, :] != 0)
-                # Else set to 0 (avoid empty row errors)
-                else 0
-                for i in range(mat.shape[0])
-            ])
+            row_means = np.ma.masked_equal(mat, 0).mean(axis=1).filled(0)
             # Calculate normalized values (exclude all-zero rows)
             # Indices of rows with non-zero mean
             valid_rows = np.where(row_means != 0)[0]
@@ -481,9 +465,9 @@ class Diagnose:
 
             except Exception as e:
                 self.logger.info(
-                    f"[Diagnose] InstanceID: { \
-                        self.instance_id} EPSize: { \
-                        self.group_size} Rank: { \
+                    f"[Diagnose] InstanceID: {
+                        self.instance_id} EPSize: {
+                        self.group_size} Rank: {
                         self.rank} dist error: {e}, diagnose thread exit.")
                 logging.shutdown()
                 return
@@ -525,8 +509,8 @@ class Diagnose:
                     stats_arr[:, i, :], thres_col=self.thres_col, thres_row=self.thres_row, thres_point=self.thres_point)
                 results.append(res)
                 self.logger.info(
-                    f"[Diagnose] InstanceID: { \
-                        self.instance_id} EPSize: { \
+                    f"[Diagnose] InstanceID: {
+                        self.instance_id} EPSize: {
                         self.group_size}, diagnose: {res}, {name} Wait Recv Cost Per Token Matrix[src_rank, dst_rank]")
                 if self.enable_details:
                     for idx, row in enumerate(stats_arr[:, i, :]):
