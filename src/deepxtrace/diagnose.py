@@ -464,11 +464,7 @@ class Diagnose:
                     self._reset_normal_stats()
 
             except Exception as e:
-                self.logger.info(
-                    f"[Diagnose] InstanceID: {
-                        self.instance_id} EPSize: {
-                        self.group_size} Rank: {
-                        self.rank} dist error: {e}, diagnose thread exit.")
+                self.logger.info(f"[Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size} Rank: {self.rank} dist error: {e}, diagnose thread exit.")
                 logging.shutdown()
                 return
 
