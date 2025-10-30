@@ -480,11 +480,7 @@ class Diagnose:
                     self._reset_normal_stats()
 
             except Exception as e:
-                self.logger.info(
-                    f"[Diagnose] InstanceID: {
-                        self.instance_id} EPSize: {
-                        self.group_size} Rank: {
-                        self.rank} dist error: {e}, diagnose thread exit.")
+                self.logger.info(f"[Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size} Rank: {self.rank} dist error: {e}, diagnose thread exit.")
                 logging.shutdown()
                 return
 
@@ -521,18 +517,11 @@ class Diagnose:
             else:
                 stats_arr = torch.stack(self.gather_tensor, dim=0).numpy()
             for i, name in enumerate(["Dispatch", "Combine"]):
-                res = Diagnose.diagnose_matrix(stats_arr[:,
-                                                         i,
-                                                         :],
-                                               thres_col=self.thres_col,
-                                               thres_row=self.thres_row,
-                                               thres_point=self.thres_point,
-                                               excluing_zeros=self.excluing_zeros)
+                res = Diagnose.diagnose_matrix(
+                    stats_arr[:, i, :], thres_col=self.thres_col, thres_row=self.thres_row, thres_point=self.thres_point)
                 results.append(res)
                 self.logger.info(
-                    f"[Diagnose] InstanceID: {
-                        self.instance_id} EPSize: {
-                        self.group_size}, diagnose: {res}, {name} Wait Recv Cost Per Token Matrix[src_rank, dst_rank]")
+                    f"[Diagnose] InstanceID: {self.instance_id} EPSize: {self.group_size}, diagnose: {res}, {name} Wait Recv Cost Per Token Matrix[src_rank, dst_rank]")
                 if self.enable_details:
                     for idx, row in enumerate(stats_arr[:, i, :]):
                         self.logger.info(
