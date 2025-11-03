@@ -351,7 +351,7 @@ class Diagnose:
             [i, row_means[i], z_row[i]]
             for i in np.where(z_row > thres_row)[0]
         ]
-        
+
         if excluding_zeros == 0:
             # 3. Check for abnormal single points (including zeros)
             # z_all = (mat - mat.mean()) / (mat.std() + 1e-8)
