@@ -328,7 +328,7 @@ class Diagnose:
                 "abnormal_points": List[List[int, int, float, float]]  # abnormal points, [row, col, value, normalized_value]
             }
         """
-        # 1. Check for abnormal columns (including zeros)
+        # 1. Check for abnormal columns
         col_means = mat.mean(axis=0)
         # z_col = (col_means - col_means.mean()) / (col_means.std() + 1e-8)
         z_col = col_means / (col_means.mean() + 1e-8)
@@ -337,7 +337,7 @@ class Diagnose:
             for j in np.where(z_col > thres_col)[0]
         ]
 
-        # 2. Check for abnormal rows (including zeros)
+        # 2. Check for abnormal rows
         row_means = mat.mean(axis=1)
         # z_row = (row_means - row_means.mean()) / (row_means.std() + 1e-8)
         z_row = row_means / (row_means.mean() + 1e-8)
@@ -346,8 +346,8 @@ class Diagnose:
             for i in np.where(z_row > thres_row)[0]
         ]
 
+        # 3. Check for abnormal single points
         if excluding_zeros == 0:
-            # 3. Check for abnormal single points (including zeros)
             # z_all = (mat - mat.mean()) / (mat.std() + 1e-8)
             z_all = mat / (mat.mean() + 1e-8)
         elif excluding_zeros == 1:
@@ -367,8 +367,8 @@ class Diagnose:
             for j in range(mat.shape[1])
             if z_all[i, j] > thres_point
         ]
-        # Optionally remove points that are in already detected abnormal
-        # rows or columns
+        # Optionally remove points that are in already detected abnormal rows 
+        # or columns
         if suppress_points_in_strong_rowscols:
             strong_rows = [row[0] for row in abnormal_rows]
             strong_cols = [col[0] for col in abnormal_cols]
