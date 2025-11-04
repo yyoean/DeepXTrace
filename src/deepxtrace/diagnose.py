@@ -367,7 +367,7 @@ class Diagnose:
             for j in range(mat.shape[1])
             if z_all[i, j] > thres_point
         ]
-        # Optionally remove points that are in already detected abnormal rows 
+        # Optionally remove points that are in already detected abnormal rows
         # or columns
         if suppress_points_in_strong_rowscols:
             strong_rows = [row[0] for row in abnormal_rows]
