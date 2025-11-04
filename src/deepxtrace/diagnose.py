@@ -359,7 +359,7 @@ class Diagnose:
                 mean_val = 0
                 # avoid devide zero
                 z_all = np.zeros_like(mat)
-            
+
         # Get all positions with z-score > threshold
         abnormal_points = [
             [i, j, mat[i, j], z_all[i, j]]
