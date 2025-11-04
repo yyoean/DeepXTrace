@@ -328,11 +328,8 @@ class Diagnose:
                 "abnormal_points": List[List[int, int, float, float]]  # abnormal points, [row, col, value, normalized_value]
             }
         """
-        if excluding_zeros == 0:
-            # 1. Check for abnormal columns (including zeros)
-            col_means = mat.mean(axis=0)
-        elif excluding_zeros == 1:
-            col_means = np.ma.masked_equal(mat, 0).mean(axis=0).filled(0)
+        # 1. Check for abnormal columns (including zeros)
+        col_means = mat.mean(axis=0)
         # z_col = (col_means - col_means.mean()) / (col_means.std() + 1e-8)
         z_col = col_means / (col_means.mean() + 1e-8)
         abnormal_cols = [
@@ -340,11 +337,8 @@ class Diagnose:
             for j in np.where(z_col > thres_col)[0]
         ]
 
-        if excluding_zeros == 0:
-            # 2. Check for abnormal rows (including zeros)
-            row_means = mat.mean(axis=1)
-        elif excluding_zeros == 1:
-            row_means = np.ma.masked_equal(mat, 0).mean(axis=1).filled(0)
+        # 2. Check for abnormal rows (including zeros)
+        row_means = mat.mean(axis=1)
         # z_row = (row_means - row_means.mean()) / (row_means.std() + 1e-8)
         z_row = row_means / (row_means.mean() + 1e-8)
         abnormal_rows = [
@@ -356,50 +350,32 @@ class Diagnose:
             # 3. Check for abnormal single points (including zeros)
             # z_all = (mat - mat.mean()) / (mat.std() + 1e-8)
             z_all = mat / (mat.mean() + 1e-8)
-            # Get all positions with z-score > threshold
-            abnormal_points = [
-                [i, j, mat[i, j], z_all[i, j]]
-                for i in range(mat.shape[0])
-                for j in range(mat.shape[1])
-                if z_all[i, j] > thres_point
-            ]
-            # Optionally remove points that are in already detected abnormal
-            # rows or columns
-            if suppress_points_in_strong_rowscols:
-                strong_rows = [row[0] for row in abnormal_rows]
-                strong_cols = [col[0] for col in abnormal_cols]
-                abnormal_points = [
-                    [i, j, v, z] for [i, j, v, z] in abnormal_points
-                    if i not in strong_rows and j not in strong_cols
-                ]
         elif excluding_zeros == 1:
-            # 3. Check for abnormal single points (excluding zeros)
-            mask = mat != 0  # Create mask for non-zero values
-            # Initialize all-zero array
-            z_all = np.zeros_like(mat, dtype=float)
-            if np.any(mask):  # If non-zero values exist
-                # Calculate mean of non-zero values (global)
-                nonzero_mean = mat[mask].mean()
-                # Normalize only non-zero values
-                z_all[mask] = mat[mask] / (nonzero_mean + 1e-8)
-            # Detect abnormal points (non-zero values with z-score > threshold)
+            nonzero_values = mat[mat != 0]
+            if len(nonzero_values) > 0:
+                mean_val = nonzero_values.mean()
+                z_all = mat / (mean_val + 1e-8)
+            else:
+                mean_val = 0
+                # avoid devide zero
+                z_all = np.zeros_like(mat)
+            
+        # Get all positions with z-score > threshold
+        abnormal_points = [
+            [i, j, mat[i, j], z_all[i, j]]
+            for i in range(mat.shape[0])
+            for j in range(mat.shape[1])
+            if z_all[i, j] > thres_point
+        ]
+        # Optionally remove points that are in already detected abnormal
+        # rows or columns
+        if suppress_points_in_strong_rowscols:
+            strong_rows = [row[0] for row in abnormal_rows]
+            strong_cols = [col[0] for col in abnormal_cols]
             abnormal_points = [
-                [i, j, mat[i, j], z_all[i, j]]
-                for i in range(mat.shape[0])
-                for j in range(mat.shape[1])
-                # Ensure non-zero and abnormal
-                if mask[i, j] and z_all[i, j] > thres_point
+                [i, j, v, z] for [i, j, v, z] in abnormal_points
+                if i not in strong_rows and j not in strong_cols
             ]
-            # Optionally remove points in already detected abnormal
-            # rows/columns
-            if suppress_points_in_strong_rowscols:
-                # Use set for faster lookup
-                strong_rows = {row[0] for row in abnormal_rows}
-                strong_cols = {col[0] for col in abnormal_cols}
-                abnormal_points = [
-                    [i, j, v, z] for [i, j, v, z] in abnormal_points
-                    if i not in strong_rows and j not in strong_cols
-                ]
 
         # 4. Return for automatic processing
         return {
