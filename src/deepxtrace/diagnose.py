@@ -356,9 +356,7 @@ class Diagnose:
                 mean_val = nonzero_values.mean()
                 z_all = mat / (mean_val + 1e-8)
             else:
-                mean_val = 0
-                # avoid devide zero
-                z_all = np.zeros_like(mat)
+                z_all = mat
 
         # Get all positions with z-score > threshold
         abnormal_points = [
